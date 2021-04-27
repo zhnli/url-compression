@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"log"
 	"os"
+	"strings"
 	"testing"
 	
 	"github.com/golang/snappy"
@@ -24,6 +25,14 @@ func BenchmarkSnappy(b *testing.B) {
 	}
 }
 
+func BenchmarkSnappyBatch(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		txt := strings.Join(dat, "\n") // Join should be run inside the loop
+		snappy.Encode(nil, []byte(txt))
+
+	}
+}
+
 func BenchmarkGzip(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		for _, line := range dat { 
@@ -36,6 +45,21 @@ func BenchmarkGzip(b *testing.B) {
 			if err := zw.Close(); err != nil {
 				log.Fatal(err)
 			}
+		}
+	}
+}
+
+func BenchmarkGzipBatch(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		txt := strings.Join(dat, "\n") // Join should be run inside the loop
+		var buf bytes.Buffer
+    	zw := gzip.NewWriter(&buf)
+    	_, err := zw.Write([]byte(txt))
+		if err != nil {
+			log.Fatal(err)
+		}
+		if err := zw.Close(); err != nil {
+			log.Fatal(err)
 		}
 	}
 }

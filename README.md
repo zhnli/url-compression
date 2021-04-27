@@ -1,11 +1,11 @@
 # Ad Beacon URL Compression Benchmarking
-Investigate the performance of compression algorithms for beacon URLs.
-Beacon redirect service has increased the load and memory usage of the Redis cluster.
+This work is to investigate the performance of compression algorithms on beacon URLs.
+Compressing long URLs can reduce network latency and save significant amount of memory for caching services like Redis.
 The Ad beacon URLs consist of random non-repeating strings which are different to the data used in most of the compression algorithm benchmarks publicly available.
-This work is done to find an algorithm that has good balance in compression ratio and CPU usage on beacon URLs.
+This work is done to find an algorithm that strikes a good balance in compression ratio and CPU usage on beacon URLs.
 Algorithms investigated include Gzip and Snappy.
 
-Note: The data contained in the files are compressed **line by line** which is different to compressing the entire data as a whole. It is done this way to simulate how compression is performed in our applications.
+Note: In non-batch mode the data contained in the files is compressed **line by line** while in batch mode the entire data is compressed in whole as a single long string. Batch mode usually gives much better compression ratio.
 
 ## Files
 * main.go: Compress data in a file using gzip or snappy. Return the total size of the compressed data.
@@ -18,6 +18,9 @@ Note: The data contained in the files are compressed **line by line** which is d
 ### Compression Ratio
 To get the compression ratio of Snappy on the lines contained in a file
 ```go run main.go -m snappy -i ./data/urls.txt```
+
+To get the compression ratio of Snappy on the a file
+```go run main.go -m snappy -b -i ./data/urls.txt```
 
 To get the compression ratio of Gzip on the lines contained in a file
 ```go run main.go -m gzip -i ./data/urls.txt```
@@ -53,27 +56,36 @@ To run benchmarks for Snappy and Gzip on data in "data/urls.txt"
 ## Results
 
 ### Snappy compression ratio
-Snappy hardly compresses the provided URLs with a compression ratio of 0.96.
+Snappy hardly compresses the provided URLs in non-batch mode with a compression ratio of 0.96.
+It achieves a much better ratio of 0.35 in batch mode.
 
 ```
-$ go run main.go -m snappy -i ./data/urls.txt 
-Result: totalIn=28420, totalOut=27272
+$ go run main.go -m snappy -i ./data/urls.txt
+Result: totalIn=28420, totalOut=27272, ratio=0.96
+
+$ $ go run main.go -m snappy -b -i ./data/urls.txt
+Result: totalIn=28490, totalOut=9863, ratio=0.35
 ```
 
 ### Gzip compression ratio
-The compression ratio of Gzip (default compression level) is around 0.75 on mixed URLs.
-The ratio is slightly higher with longer URLs. 
+The compression ratio of Gzip (default compression level) is 0.77 in non-batch mode and 0.24 in batch mode.
+
 ```
-$ go run main.go -m gzip -i ./data/urls.txt 
-Result: totalIn=28420, totalOut=21786
-$ go run main.go -m gzip -i ./data/urls.txt 
-Result: totalIn=3992, totalOut=2805
+$ go run main.go -m gzip -i ./data/urls.txt
+Result: totalIn=28420, totalOut=21786 ratio=0.77
+
+$ go run main.go -m gzip -b -i ./data/urls.txt
+Result: totalIn=28490, totalOut=6743, ratio=0.24
 ```
 
 ### Speed
-Snappy performed 300 times faster than Gzip on the data in file "data/urls.txt".
+Snappy performed 300 times faster than Gzip in non-batch mode on the data in file "data/urls.txt".
+Snappy performed 20 times faster than Gzip in batch mode.
+
 ```
 $ go test -bench=.
-BenchmarkSnappy-12         31886             36592 ns/op
-BenchmarkGzip-12             127           9385610 ns/op
+BenchmarkSnappy-12                 31876             36705 ns/op
+BenchmarkSnappyBatch-12            59689             19848 ns/op
+BenchmarkGzip-12                     126           9571068 ns/op
+BenchmarkGzipBatch-12               3021            400934 ns/op
 ```
